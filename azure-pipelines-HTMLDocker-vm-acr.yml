@@ -72,28 +72,19 @@ stages:
 
                     # Intentar descargar la imagen según el formato del repositorio
                     echo "Descargando imagen desde ACR..."
-                    sudo docker pull ${ACR_NAME}.azurecr.io/${ACR_NAME}.azurecr.io/${IMAGE_NAME}:latest || sudo docker pull ${ACR_NAME}.azurecr.io/${IMAGE_NAME}:latest
-
-                    # Detectar el tag exacto que se descargó
-                    if sudo docker image inspect ${ACR_NAME}.azurecr.io/${ACR_NAME}.azurecr.io/${IMAGE_NAME}:latest > /dev/null 2>&1; then
-                      TARGET_IMAGE="${ACR_NAME}.azurecr.io/${ACR_NAME}.azurecr.io/${IMAGE_NAME}:latest"
-                    else
-                      TARGET_IMAGE="${ACR_NAME}.azurecr.io/${IMAGE_NAME}:latest"
-                    fi
-
-                    # Verificar si el contenedor web ya existe (lo detiene y elimina para actualizarlo)
+                    sudo docker pull acreft5.azurecr.io/acreftg5.azurecr.io/web-html-app:latest
+                    # Detener versión previa si existe
                     if sudo docker ps -a --format '{{.Names}}' | grep -Eq "^html_container\$"; then
-                      echo "El contenedor 'html_container' ya existe. Actualizando..."
+                      echo "Deteniendo contenedor previo..."
                       sudo docker stop html_container || true
                       sudo docker rm html_container || true
                     fi
-
-                    echo "Creando y ejecutando nuevo contenedor en puerto 80..."
-                    sudo docker run -d -p 80:80 --name html_container --restart always ${TARGET_IMAGE}
-
-                    echo "=== Contenedores en ejecución ==="
+                    # Ejecutar el contenedor en el puerto 80
+                    echo "Ejecutando contenedor web..."
+                    sudo docker run -d -p 80:80 --name html_container --restart always acreft5.azurecr.io/acreftg5.azurecr.io/web-html-app:latest
+                    echo "=== Estado del contenedor ==="
                     sudo docker ps
-                  displayName: 'Descargar y ejecutar la imagen Web HTML en Docker'
+                  displayName: 'Descargar y ejecutar imagen Web en Docker'
                   failOnStderr: true
 
                 - script: |

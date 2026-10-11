@@ -9,8 +9,8 @@ variables:
   # ==============================================================================
   VM_IP_PUBLICA: '65.52.59.163'     # IP pública de tu VM_EFT_G5 en Azure Portal
   IMAGE_NAME: 'web-html-app'              # Nombre de la imagen que subiste a ACR
-  ACR_NAME: 'acreftg5'                    # Nombre de tu Azure Container Registry (sin .azurecr.io)
-  ACR_USERNAME: 'acreftg5'                # Usuario administrador de tu ACR
+  ACR_NAME: 'acreft5'                    # Nombre de tu Azure Container Registry (sin .azurecr.io)
+  ACR_USERNAME: 'acreft5'                # Usuario administrador de tu ACR
   ACR_PASSWORD: 'EmIlhmptwxbe8uOEVeBOxzt0hS6kjSiUfdlQeUDzQOSNjH2dMV1IJQQJ99CJACHrzpqEqg7NAAACAZCRnUye'   # Contraseña administrativa de tu ACR
 
 stages:

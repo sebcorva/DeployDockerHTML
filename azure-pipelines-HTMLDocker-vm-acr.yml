@@ -1,0 +1,104 @@
+trigger:
+  branches:
+    include:
+      - main
+
+variables:
+  # ==============================================================================
+  # VARIABLES DE ENTORNO (Reemplaza con los valores de tu grupo)
+  # ==============================================================================
+  VM_IP_PUBLICA: '65.52.59.163'     # IP pública de tu VM_EFT_G5 en Azure Portal
+  IMAGE_NAME: 'web-html-app'              # Nombre de la imagen que subiste a ACR
+  ACR_NAME: 'acreftg5'                    # Nombre de tu Azure Container Registry (sin .azurecr.io)
+  ACR_USERNAME: 'acreftg5'                # Usuario administrador de tu ACR
+  ACR_PASSWORD: 'EmIlhmptwxbe8uOEVeBOxzt0hS6kjSiUfdlQeUDzQOSNjH2dMV1IJQQJ99CJACHrzpqEqg7NAAACAZCRnUye'   # Contraseña administrativa de tu ACR
+
+stages:
+  - stage: Deploy
+    jobs:
+      - deployment: DeployToVM
+        displayName: 'Deploy HTML Web App to VM'
+        environment:
+          name: 'VMLinuxDocker'           # Nombre EXACTO de tu Environment creado en Azure DevOps
+          resourceType: VirtualMachine     # Especifica que se conecta a una máquina virtual
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: |
+                    # Verificar e instalar Azure CLI en la máquina virtual
+                    if ! command -v az &> /dev/null; then
+                      echo "Azure CLI no está instalado. Instalando Azure CLI..."
+                      export DEBIAN_FRONTEND=noninteractive
+                      sudo apt-get update && \
+                      sudo apt-get install -y curl && \
+                      curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash && \
+                      az --version
+                    else
+                      echo "Azure CLI ya está instalado."
+                    fi
+                  displayName: 'Verificar e Instalar Azure CLI'
+                  failOnStderr: true
+
+                - script: |
+                    # Verificar e instalar Docker en la máquina virtual
+                    if ! command -v docker &> /dev/null; then
+                      echo "Docker no está instalado. Instalando Docker..."
+                      export DEBIAN_FRONTEND=noninteractive
+                      sudo apt-get update && \
+                      sudo apt-get install -y \
+                        apt-transport-https \
+                        ca-certificates \
+                        curl \
+                        gnupg \
+                        lsb-release && \
+                      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg && \
+                      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+                      sudo apt-get update && \
+                      sudo apt-get install -y docker-ce docker-ce-cli containerd.io && \
+                      sudo systemctl start docker && \
+                      sudo systemctl enable docker && \
+                      sudo docker --version
+                    else
+                      echo "Docker ya está instalado."
+                    fi
+                  displayName: 'Verificar e Instalar Docker'
+                  failOnStderr: true
+
+                - script: |
+                    # Autenticarse en Azure Container Registry utilizando nombre de usuario y contraseña
+                    echo "Autenticándose en Azure Container Registry..."
+                    echo "${ACR_PASSWORD}" | sudo docker login ${ACR_NAME}.azurecr.io -u ${ACR_USERNAME} --password-stdin > /dev/null 2>&1
+
+                    # Intentar descargar la imagen según el formato del repositorio
+                    echo "Descargando imagen desde ACR..."
+                    sudo docker pull ${ACR_NAME}.azurecr.io/${ACR_NAME}.azurecr.io/${IMAGE_NAME}:latest || sudo docker pull ${ACR_NAME}.azurecr.io/${IMAGE_NAME}:latest
+
+                    # Detectar el tag exacto que se descargó
+                    if sudo docker image inspect ${ACR_NAME}.azurecr.io/${ACR_NAME}.azurecr.io/${IMAGE_NAME}:latest > /dev/null 2>&1; then
+                      TARGET_IMAGE="${ACR_NAME}.azurecr.io/${ACR_NAME}.azurecr.io/${IMAGE_NAME}:latest"
+                    else
+                      TARGET_IMAGE="${ACR_NAME}.azurecr.io/${IMAGE_NAME}:latest"
+                    fi
+
+                    # Verificar si el contenedor web ya existe (lo detiene y elimina para actualizarlo)
+                    if sudo docker ps -a --format '{{.Names}}' | grep -Eq "^html_container\$"; then
+                      echo "El contenedor 'html_container' ya existe. Actualizando..."
+                      sudo docker stop html_container || true
+                      sudo docker rm html_container || true
+                    fi
+
+                    echo "Creando y ejecutando nuevo contenedor en puerto 80..."
+                    sudo docker run -d -p 80:80 --name html_container --restart always ${TARGET_IMAGE}
+
+                    echo "=== Contenedores en ejecución ==="
+                    sudo docker ps
+                  displayName: 'Descargar y ejecutar la imagen Web HTML en Docker'
+                  failOnStderr: true
+
+                - script: |
+                    echo "=========================================================="
+                    echo " Aplicación Web HTML desplegada exitosamente!"
+                    echo " Abre tu navegador e ingresa a: http://${VM_IP_PUBLICA}"
+                    echo "=========================================================="
+                  displayName: 'Mostrar URL de la aplicación Web'
